@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>তিথি</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#0d0d0d;--fg:#f2f2f2;--mid:#9a9a9a;--dim:#5c5c5c;--line:#262626;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f4f4f4;--fg:#111;--mid:#6b6b6b;--dim:#a8a8a8;--line:#dcdcdc;color-scheme:light}}
+:root[data-theme="light"]{--bg:#f4f4f4;--fg:#111;--mid:#6b6b6b;--dim:#a8a8a8;--line:#dcdcdc;color-scheme:light}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:"Hind Siliguri","Noto Sans Bengali","Kalpurush",system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px}
+main{width:100%;max-width:760px}
+.date{color:var(--mid);font-size:clamp(1.1rem,3.6vw,1.5rem);margin-bottom:28px}
+.tithi{font-size:clamp(2.6rem,11vw,5.6rem);font-weight:600;line-height:1.15;margin:0}
+.paksha{font-size:clamp(1.8rem,7vw,3.4rem);color:var(--mid);margin:6px 0 0;font-weight:500}
+.bndate{margin-top:18px;font-weight:400}
+.bar{height:3px;background:var(--line);margin:36px 0 10px;border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--mid);width:0}
+.end{color:var(--dim);font-size:clamp(1rem,3.2vw,1.3rem)}
+.next{margin-top:44px;padding-top:28px;border-top:1px solid var(--line);font-size:clamp(1.9rem,7.5vw,3.6rem);font-weight:600;line-height:1.25}
+.other{color:var(--mid);font-size:clamp(1.05rem,3.6vw,1.5rem);margin-top:14px}
+</style>
+</head>
+<body>
+<main>
+  <div class="date" id="date"></div>
+  <h1 class="tithi" id="tithi"></h1>
+  <div class="paksha" id="paksha"></div>
+  <div class="paksha bndate" id="bndate"></div>
+  <div class="bar"><i id="fill"></i></div>
+  <div class="end" id="end"></div>
+  <div class="next" id="next"></div>
+  <div class="other" id="other"></div>
+</main>
+<script>
+(function(){
+var TZ='Asia/Dhaka',R=Math.PI/180,DAY=86400000;
+var NAMES=['প্রতিপদ','দ্বিতীয়া','তৃতীয়া','চতুর্থী','পঞ্চমী','ষষ্ঠী','সপ্তমী','অষ্টমী','নবমী','দশমী','একাদশী','দ্বাদশী','ত্রয়োদশী','চতুর্দশী'];
+function bn(s){return String(s).replace(/\d/g,function(d){return '০১২৩৪৫৬৭৮৯'[d]})}
+function mod(a,n){return ((a%n)+n)%n}
+function elong(ms){
+  var d=ms/DAY+2440587.5-2451545.0;
+  var g=(357.528+0.9856003*d)*R;
+  var sun=280.460+0.9856474*d+1.915*Math.sin(g)+0.020*Math.sin(2*g);
+  var L=218.316+13.176396*d, M=(134.963+13.064993*d)*R, D=(297.850+12.190749*d)*R, F=(93.272+13.229350*d)*R;
+  var moon=L+6.289*Math.sin(M)+1.274*Math.sin(2*D-M)+0.658*Math.sin(2*D)+0.214*Math.sin(2*M)-0.186*Math.sin(g)-0.114*Math.sin(2*F);
+  return mod(moon-sun,360);
+}
+function nextCross(target,now){
+  var e=elong(now), t=now+mod(target-e,360)/12.19*DAY;
+  for(var i=0;i<8;i++){
+    var diff=mod(elong(t)-target+180,360)-180;
+    t-=diff/12.19*DAY;
+  }
+  return t;
+}
+function dhakaDay(ms){
+  var p=new Date(ms).toLocaleDateString('en-CA',{timeZone:TZ}).split('-');
+  return Date.UTC(+p[0],+p[1]-1,+p[2])/DAY;
+}
+function fmt(ms,o){return new Date(ms).toLocaleString('bn-BD',Object.assign({timeZone:TZ},o))}
+function daysText(ms,now){
+  var n=dhakaDay(ms)-dhakaDay(now);
+  return n<=0?0:n;
+}
+var MONTHS=['বৈশাখ','জ্যৈষ্ঠ','আষাঢ়','শ্রাবণ','ভাদ্র','আশ্বিন','কার্তিক','অগ্রহায়ণ','পৌষ','মাঘ','ফাল্গুন','চৈত্র'];
+function banglaDate(ms){
+  var p=new Date(ms).toLocaleDateString('en-CA',{timeZone:TZ}).split('-').map(Number);
+  var y=p[0],cur=Date.UTC(y,p[1]-1,p[2])/DAY,start=Date.UTC(y,3,14)/DAY;
+  if(cur<start){y--;start=Date.UTC(y,3,14)/DAY}
+  var by=y-593,ny=y+1,leap=(ny%4===0&&ny%100!==0)||ny%400===0;
+  var len=[31,31,31,31,31,30,30,30,30,30,leap?30:29,30];
+  var off=cur-start,i=0;
+  while(i<11&&off>=len[i]){off-=len[i];i++}
+  return bn(off+1)+' '+MONTHS[i]+', '+bn(by)+' বঙ্গাব্দ';
+}
+function render(){
+  var now=Date.now(), e=elong(now);
+  var t=Math.floor(e/12)+1; if(t>30)t=30;
+  var shukla=t<=15, n=shukla?t:t-15;
+  var name=n===15?(shukla?'পূর্ণিমা':'অমাবস্যা'):NAMES[n-1];
+  document.getElementById('date').textContent=fmt(now,{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('tithi').textContent=name+' তিথি';
+  document.getElementById('paksha').textContent=shukla?'শুক্লপক্ষ':'কৃষ্ণপক্ষ';
+  document.getElementById('bndate').textContent=banglaDate(now);
+  document.getElementById('fill').style.width=((n-1+ (e%12)/12)/15*100)+'%';
+  var endMs=nextCross(Math.ceil(e/12)*12%360,now);
+  document.getElementById('end').textContent='এই তিথি শেষ: '+fmt(endMs,{day:'numeric',month:'long',hour:'numeric',minute:'2-digit',hour12:true});
+  // purnima tithi starts at 168°, amavasya tithi starts at 348°
+  var inP=(t===15), inA=(t===30);
+  var pMs=inP?now:nextCross(168,now), aMs=inA?now:nextCross(348,now);
+  var pd=daysText(pMs,now), ad=daysText(aMs,now);
+  function line(label,d){return d===0?'আজ '+label+'!':label+' আসতে '+bn(d)+' দিন বাকি!'}
+  var first=pd<=ad?['পূর্ণিমা',pd,pMs]:['অমাবস্যা',ad,aMs];
+  var second=pd<=ad?['অমাবস্যা',ad,aMs]:['পূর্ণিমা',pd,pMs];
+  document.getElementById('next').textContent=line(first[0],first[1]);
+  document.getElementById('other').textContent=line(second[0],second[1]).replace('!','')+' ('+fmt(second[2],{day:'numeric',month:'long'})+')';
+}
+render();
+setInterval(render,60000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)render()});
+window.addEventListener('focus',render);
+})();
+</script>
+</body>
+</html>
